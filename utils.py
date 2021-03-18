@@ -30,7 +30,6 @@ def load_data(fname, ftype='fits', print_info=True):
 
             if print_info:
                 print(str(hdulist.info()))
-            if len(np.shape(hdulist[0].data))>2:
                 data = get_last2d(hdulist[0].data)
             else:
                 data = hdulist[0].data
