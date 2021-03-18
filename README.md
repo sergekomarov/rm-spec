@@ -19,4 +19,4 @@ Here for an astrophysical example, the method is applied to rotation measure map
  
 ### Papers used:
 "A Mexican hat with holes: calculating low-resolution power spectra from data with gaps", P. Arevalo et al., 2012
-"Structure analysis of interstellar clouds. I. Improving the Δ-variance method", V. Ossenkopf, M. Krips, M. and J. Stutzki, 2008
+"Structure analysis of interstellar clouds. I. Improving the Δ-variance method", V. Ossenkopf, M. Krips, and J. Stutzki, 2008
