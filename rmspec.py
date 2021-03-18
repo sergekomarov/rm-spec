@@ -2,11 +2,11 @@ import sys, os
 from time import time
 import numpy as np
 from scipy import special, fftpack
-import multiprocessing as mp
+import multiprocessing
 import configparser
 
 from field_generators import gen2d, gen3d_divfree, gen3d_smooth_model
-from utils import add_padding, data_fft, load_data, write_data
+from utils import add_padding, load_data, write_data
 
 
 class RMspec:
@@ -19,7 +19,7 @@ class RMspec:
     the 3D PDS of fluctuating magnetic fields in the cluster.
     '''
 
-    def __init__(self, input_path=None, output_dir='out', config_path='params.cfg'):
+    def __init__(self, input_path, output_dir='out'):
 
         '''
         Obtains parameters from the config file, loads the data.
@@ -27,21 +27,11 @@ class RMspec:
         Args:
             input_path (str):  path to the input file, overrides the config file
             output_dir (str):  path to the output directory
-            config_path (str): path to the configuration file
         '''
-
-        # parse the config file
-        config = configparser.ConfigParser()
-        try:
-            config.read(config_path)
-        except IOError:
-            print('Error: No config file [params.cfg] found in the root directory')
-            sys.exit()
 
         # Input (path to the input image)
 
-        if input_path is None:
-            self.input_path = config.get("input", "input_path")
+        self.input_path = input_path
 
         input_fname_parts = os.path.split(self.input_path)[-1].split('.')
         if len(input_fname_parts)==1:
@@ -60,35 +50,6 @@ class RMspec:
                                                 f+ '_'+input_fname+'.npy')
         self.output_paths['pds'] = os.path.join(output_dir,
                                                 'pds_'+input_fname+'.txt')
-
-        # '''
-        # deproject=0: calculate the 2D power spectral density of the input image
-        # deproject=1: deproject the image and estimate the 3D spectrum of the
-        #              fluctuating magnetic fields
-        # '''
-        # self.regime = config.get("input", "regime")
-
-        # Observed cluster parameters parameters (use only when need to deproject 3D PDS)
-
-        # beta model parameters
-        self.cluster_params = {}
-        self.cluster_params['ne0'] = config.getfloat("cluster_params", "ne0")
-        self.cluster_params['rc'] = config.getfloat("cluster_params", "rc")
-        self.cluster_params['beta'] = config.getfloat("cluster_params", "beta")
-        # size of pixel in kiloparsecs
-        self.cluster_params['kpc_px'] = config.getfloat("cluster_params", "kpc_px")
-        # Galactic background to subtract from the observed RM map
-        self.cluster_params['gal_bg'] = config.getfloat("cluster_params", "gal_bg")
-        # location of the cluster center on the sky in pixels
-        self.cluster_params['center'] = [config.getint("cluster_params", "ix0"),
-                                         config.getint("cluster_params", "iy0")]
-
-        #recovery
-        self.recovery_params = {}
-        self.recovery_params['alpha'] = config.getfloat("recovery_params", "alpha")
-        self.recovery_params['inclin'] = config.getfloat("recovery_params", "inclin")
-        # depth of the 3D box used to generate the smooth model
-        self.recovery_params['lz'] = config.getint("recovery_params", "Lz")
 
         #input
         # mask_path = config.get("input", "mask_path")
@@ -132,8 +93,8 @@ class RMspec:
         self.data_dim = self.data.shape
 
         # adjust the cluster center location after the croping
-        self.cluster_params['center'][0] -= imin
-        self.cluster_params['center'][1] -= jmin
+        self.cluster_params = {}
+        self.cluster_params['center'] = [-imin,-jmin]
 
         # make the mask given the cropped input data
         self.mask = np.array(np.invert(np.isnan(self.data)), dtype=float)
@@ -141,11 +102,47 @@ class RMspec:
         # save the mask
         write_data(self.output_paths['mask'], self.mask, ftype='npy')
 
+
+    def deproject(self, config_path='params.cfg'):
+
+        '''
+        Deproject a rotation measure map by dividing it by a smooth model
+        of the cluster with the parameters taken from the configuration file.
+
+        Args:
+            config_path (str): path to the configuration file
+        '''
+
+        # Observed cluster parameters parameters (use only when need to deproject 3D PDS)
+
+        config = configparser.ConfigParser()
+        try:
+            config.read(config_path)
+        except IOError:
+            print('Error: No config file found at '+config_path)
+            return
+
+        # beta model parameters
+        self.cluster_params['ne0'] = config.getfloat("cluster_params", "ne0")
+        self.cluster_params['rc'] = config.getfloat("cluster_params", "rc")
+        self.cluster_params['beta'] = config.getfloat("cluster_params", "beta")
+        # size of pixel in kiloparsecs
+        self.cluster_params['kpc_px'] = config.getfloat("cluster_params", "kpc_px")
+        # Galactic background to subtract from the observed RM map
+        self.cluster_params['gal_bg'] = config.getfloat("cluster_params", "gal_bg")
+        # location of the cluster center on the sky in pixels
+        self.cluster_params['center'][0] += config.getint("cluster_params", "ix0")
+        self.cluster_params['center'][1] += config.getint("cluster_params", "iy0")
+
+        #recovery
+        self.recovery_params = {}
+        self.recovery_params['alpha'] = config.getfloat("recovery_params", "alpha")
+        self.recovery_params['inclin'] = config.getfloat("recovery_params", "inclin")
+        # depth of the 3D box used to generate the smooth model
+        self.recovery_params['lz'] = config.getint("recovery_params", "Lz")
+
         # subtract the background
         self.data -= self.cluster_params['gal_bg']
-
-
-    def deproject(self, cluster_params=None, recovery_params=None):
 
         kpc_px = self.cluster_params['kpc_px']
         lx,ly = self.data.shape
@@ -158,7 +155,7 @@ class RMspec:
 
         print('deproject the image...')
 
-        # integrate it along the lign of sight
+        # integrate the smooth model along the lign of sight
         I0 = np.sqrt( (smod**2).sum(axis=2)) * kpc_px * 812.
         write_data(self.output_paths['smooth'], I0, ftype='npy')
 
@@ -166,10 +163,6 @@ class RMspec:
         ind = (I0!=0.) * np.invert(np.isnan(self.data))
         self.data[ind] /= I0[ind]
         write_data(self.output_paths['deproj'], self.data, ftype='npy')
-
-    #    X,Y = meshgrid(arange(ly), arange(lx))
-    #    circ = sqrt((Y-479)**2+(X-46)**2) < 225.
-    #    rm[circ] = NaN
 
         print('deprojection done\n')
 
@@ -188,18 +181,24 @@ class RMspec:
             nt:     number of threads for multiprocessing
 
         Returns:
-            kr:     radial wavenumbers
+            kr:     radial wavenumbers in px^(-1)
             pds:    PDS measured at kr
         '''
 
         print('calculate the PDS...')
+
+        lx,ly = self.data.shape
+
+        # subtract the mean component
+        self.data[self.mask==1.] -= self.data[self.mask==1.].mean()
 
         # replace NaNs by zeros, add padding
         dp = add_padding(self.data, width=0.5)
         mp = add_padding(self.mask, width=0.5)
 
         # Fourier transform of the padded image and mask
-        dpf, mpf = data_fft(dp), data_fft(mp)
+        dpf = fftpack.fftn(dp)/np.sqrt(lx*ly)
+        mpf = fftpack.fftn(mp)/np.sqrt(lx*ly)
 
         #pds = mp.Array('d', np.zeros(N))
         pds = np.zeros(ns)
@@ -213,41 +212,37 @@ class RMspec:
 
         eps = 1e-3
 
-        #t=time()
-
         # Split calculation for different wave numbers between threads
 
         params = [{'i':i, 'kri':kr[i], 'datf':dpf, 'mskf':mpf, 'msk':mp,
                  'eps':eps, 'p_corr':p_corr} for i in range(ns)]
 
         if nt>1:
-            with mp.Pool(nt) as pool:
-                pds = pool.map(calc_pds_single, **params)
+            with multiprocessing.Pool(nt) as pool:
+                pds = pool.map(calc_pds_single, params)
             pool.join()
         else:
-            pds = map(calc_pds_single, **params)
-
-        #print 'execution time=',time()-t
+            pds = map(calc_pds_single, params)
 
         if np.any(np.isnan(pds)): print('Error: NaN in the PDS')
 
-        self.scales = 1./kr
+        self.kr = kr
         self.pds = pds
-        np.savetxt(self.output_paths['pds'], np.asarray([self.scales,self.pds]))
-        print(f'PDS calculated and saved as {eps}')
+        np.savetxt(self.output_paths['pds'], np.asarray([self.kr,self.pds]))
+        print('PDS calculated and saved as '+self.output_paths['pds'])
 
-        return (self.scales,self.pds)
+        return (self.kr,self.pds)
 
 
 #------------------------------------------------------------------
 
-def calc_pds_single(i=0, kri=1e-1, datf=None, mskf=None, msk=None,
-                    eps=1e-3, p_corr=0.):
+def calc_pds_single(params):
 
     '''
     Calculate the PDS value for a single radial wavenumber kri=kr[i].
 
     Args:
+      params (dict) with items:
         kri (float):            radial wavenumber
         datf, mskf (2d arrays): Fourier transforms of the padded image and mask
         msk (2d array):         padded mask
@@ -263,6 +258,9 @@ def calc_pds_single(i=0, kri=1e-1, datf=None, mskf=None, msk=None,
 
     The PDS value is obtained from the total variance of the convolved image.
     '''
+
+    i,kri,eps,p_corr = params['i'],params['kri'],params['eps'],params['p_corr']
+    datf,mskf,msk = params['datf'],params['mskf'],params['msk']
 
     (lx,ly) = datf.shape
     Ikr = np.zeros((lx,ly))
@@ -316,11 +314,11 @@ def calc_pds_single(i=0, kri=1e-1, datf=None, mskf=None, msk=None,
         '''
 
         conv_dG = fftpack.ifftn((G1-G2) * datf)
-        Ikr = conv_dG*np.sqrt(lx*ly)
+        Ikr = conv_dG * np.sqrt(lx*ly)
 
         vr = np.sqrt((np.abs(Ikr)**2).mean())
         vf = np.sqrt((np.abs((G1-G2) * datf)**2).mean())
-        print(f'Checking the Parseval theorem (backward FFT):\nvr={vr}\nvf={vf}')
+        print(f'checking the Parseval theorem (backward FFT):\nvr={vr}\nvf={vf}')
 
     # total variance
     var = ( lx*ly / msk.sum() * (np.abs(Ikr)**2).sum() )

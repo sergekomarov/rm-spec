@@ -68,11 +68,11 @@ def write_data(fname, data, ftype='fits'):
     elif ftype=='npy':
         np.save(fname, data)
     else:
-        print('Error: unknown output file type.')
+        print('Error: unknown output file type')
         sys.exit()
 
 
-def add_padding(dat, width=0.5):
+def add_padding(data, width=0.5):
 
     '''
     Replace NaNs by zeros and add zero padding around an image for the
@@ -93,21 +93,3 @@ def add_padding(dat, width=0.5):
     notnan = np.invert(np.isnan(data))
     data_pad[i0:i0+lx, j0:j0+ly][notnan] += data[notnan]
     return data_pad
-
-
-def data_fft(data):
-
-    '''
-    Args:
-        dat (2D array): input image
-    Returns:
-        2D array: normalized Fourier transform of the image.
-    '''
-
-    lx,ly = dat.shape
-    dataf = fftpack.fftn(data)
-    dataf *= np.sqrt(lx*ly)
-    vr = np.sqrt((np.abs(data)**2).mean())
-    vf = np.sqrt((np.abs(dataf)**2).mean())
-    print(f'Checking the Parseval theorem (forward FFT):\nvr={vr}\nvf={vf}')
-    return dataf
