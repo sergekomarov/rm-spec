@@ -4,7 +4,7 @@
 Please see USAGE.ipynb.
 
 ### Prerequisites
-astropy
+astropy (for .fits file support)
 
 ### The problem
 
