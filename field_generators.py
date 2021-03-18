@@ -6,7 +6,7 @@ from scipy import fftpack
 Functions to generate 2D/3D random fields and smooth models of galaxy clusters.
 '''
 
-def gen3d_smooth_model(shape, cntr, cluster_params, recovery_params):
+def gen3d_smooth_model(shape, cluster_params, recovery_params):
 
     '''
     Generate a smooth beta-model for the radial distribution of the magnetic
@@ -15,24 +15,31 @@ def gen3d_smooth_model(shape, cntr, cluster_params, recovery_params):
 
     Args:
         shape (tuple): (lx,ly) shape used to set the x-y dimensions of the model
-        cntr (tuple): (ix0,iy0) location (in pixels) of the cluster center on the sky
-        cluster_params (dict): observed parameters of the cluster
+        cluster_params (dict):  observed parameters of the cluster
         recovery_params (dict): other assumed parameters for the smooth model
     Returns:
         3d numpy array
     '''
 
+    # central electron density
     ne0  = cluster_params['ne0']
+    # cluster radius
     rc   = cluster_params['rc']
+    # beta in the beta-model
     beta = cluster_params['beta']
+    # pixel size in kiloparsecs
     kpc_px = cluster_params['kpc_px']
 
+    # inclination of the radio source relative to the sky plane
     inclin = recovery_params['inclin']
+    # B(r) = n_e(r)**alpha
     alpha  = recovery_params['alpha']
+    # depth of the box in which the smooth model is generated
     lz = recovery_params['lz']
 
     lx,ly = shape
-    ix0,iy0 = cntr
+    # location of the cluster center on the sky in pixels
+    ix0,iy0 = cluster_params['center']
 
     tn = np.tan(np.radians(90.-inclin))
     iz0 = int(ix0/(tn+1e-6))
@@ -43,11 +50,11 @@ def gen3d_smooth_model(shape, cntr, cluster_params, recovery_params):
                            np.arange(float(ly)),
                            np.arange(float(lz)), indexing='ij')
     r = np.sqrt((ix-ix0)**2 + (iy-iy0)**2 + (iz-iz0)**2) * kpc_px
-    smod  = np.pow(1+(r/rc)**2, -1.5*beta)
-    smod  = np.pow(smod, alpha+1) * ne0
+    smod  = np.power(1+(r/rc)**2, -1.5*beta)
+    smod  = np.power(smod, alpha+1) * ne0
     smod[ix-ix0>(iz-iz0)*tn] = 0.
 
-    return bmod
+    return smod
 
 
 def gen2d(shape, p1=3.67, p2=3.67, kb=1e-1, C=1., msk=None, seed=0):
@@ -81,7 +88,7 @@ def gen2d(shape, p1=3.67, p2=3.67, kb=1e-1, C=1., msk=None, seed=0):
     k = np.sqrt((kx/lx)**2 + (ky/ly)**2 + 1e-20)
 
     # set the spectral model
-    z = np.sqrt( 1./(np.pow(k/kb, p1) + np.pow(k/kb, p2)) )
+    z = np.sqrt( 1./(np.power(k/kb, p1) + np.power(k/kb, p2)) )
     z[0,0]=0.
 
     # inverse FFT
@@ -139,7 +146,7 @@ def gen3d_divfree(shape, p1=3.67, p2=3.67, kb=1e-1, C=1., seed=0):
     k = np.sqrt((kx/lx)**2 + (ky/ly)**2 + (kz/lz)**2 + 1e-20)
 
     # set the spectral model
-    z = np.sqrt( 1./(np.pow(k/kb, p1) + np.pow(k/kb, p2)) )
+    z = np.sqrt( 1./(np.power(k/kb, p1) + np.power(k/kb, p2)) )
     z[0,0,0]=0.
 
     phr = 2*np.pi*np.random.random((lx,ly,lz))

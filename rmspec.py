@@ -70,10 +70,6 @@ class RMspec:
 
         # Observed cluster parameters parameters (use only when need to deproject 3D PDS)
 
-        # location of cluster center on the sky in pixels
-        self.center = [config.getint("cluster_params", "ix0"),
-                       config.getint("cluster_params", "iy0")]
-
         # beta model parameters
         self.cluster_params = {}
         self.cluster_params['ne0'] = config.getfloat("cluster_params", "ne0")
@@ -83,6 +79,9 @@ class RMspec:
         self.cluster_params['kpc_px'] = config.getfloat("cluster_params", "kpc_px")
         # Galactic background to subtract from the observed RM map
         self.cluster_params['gal_bg'] = config.getfloat("cluster_params", "gal_bg")
+        # location of the cluster center on the sky in pixels
+        self.cluster_params['center'] = [config.getint("cluster_params", "ix0"),
+                                         config.getint("cluster_params", "iy0")]
 
         #recovery
         self.recovery_params = {}
@@ -133,8 +132,8 @@ class RMspec:
         self.data_dim = self.data.shape
 
         # adjust the cluster center location after the croping
-        self.center[0] -= imin
-        self.center[1] -= jmin
+        self.cluster_params['center'][0] -= imin
+        self.cluster_params['center'][1] -= jmin
 
         # make the mask given the cropped input data
         self.mask = np.array(np.invert(np.isnan(self.data)), dtype=float)
@@ -143,17 +142,16 @@ class RMspec:
         write_data(self.output_paths['mask'], self.mask, ftype='npy')
 
         # subtract the background
-        # self.data -= self.cluster_params['gal_bg']
+        self.data -= self.cluster_params['gal_bg']
 
 
     def deproject(self, cluster_params=None, recovery_params=None):
 
         kpc_px = self.cluster_params['kpc_px']
         lx,ly = self.data.shape
-        lz = self.lz
 
         print('generate a 3D smooth model of the cluster...')
-        smod = gen3d_smooth_model(shape=(lx,ly,lz),
+        smod = gen3d_smooth_model(shape=(lx,ly),
                                   cluster_params=self.cluster_params,
                                   recovery_params=self.recovery_params)
         write_data(self.output_paths['smooth3d'], smod[:,ly//2,:], ftype='npy')
