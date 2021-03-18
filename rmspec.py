@@ -124,17 +124,17 @@ class RMspec:
         ftype = self.input_path.split('.')[-1].lower()
 
         # load data
-        self.data = load_data(self.input_path, ftype=ftype, print_info=True)
+        d = load_data(self.input_path, ftype=ftype, print_info=True)
 
         # crop it
-        # ir, jr = np.nonzero(np.invert(np.isnan(d)))
-        # imin, jmin, imax, jmax = ir.min(),jr.min(), ir.max(),jr.max()
-        # self.data = d[imin:imax+1, jmin:jmax+1]
-        # self.data_dim = self.data.shape
-        #
-        # # adjust the cluster center location after the croping
-        # self.center[0] -= imin
-        # self.center[1] -= jmin
+        ir, jr = np.nonzero(np.invert(np.isnan(d)))
+        imin, jmin, imax, jmax = ir.min(),jr.min(), ir.max(),jr.max()
+        self.data = d[imin:imax+1, jmin:jmax+1]
+        self.data_dim = self.data.shape
+
+        # adjust the cluster center location after the croping
+        self.center[0] -= imin
+        self.center[1] -= jmin
 
         # make the mask given the cropped input data
         self.mask = np.array(np.invert(np.isnan(self.data)), dtype=float)
