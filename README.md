@@ -21,5 +21,5 @@ An alternative is to apply a Mexican hat wavelet separately to a patchy image wi
 Here for an astrophysical example, the method is applied to rotation measure maps to infer the spectrum of magnetic fields in a galaxy cluster. But the code can be used with any 2D data converted to an .npy array or a .fits file with NaNs indicating missing parts.
  
 ### Papers used:
-"A Mexican hat with holes: calculating low-resolution power spectra from data with gaps", P. Arevalo et al., 2012
+"A Mexican hat with holes: calculating low-resolution power spectra from data with gaps", P. Arevalo et al., 2012<br>
 "Structure analysis of interstellar clouds. I. Improving the Δ-variance method", V. Ossenkopf, M. Krips, and J. Stutzki, 2008
