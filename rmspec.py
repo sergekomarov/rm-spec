@@ -22,7 +22,7 @@ class RMspec:
     def __init__(self, input_path, output_dir='out'):
 
         '''
-        Obtains parameters from the config file, loads the data.
+        Loads and preprocesses the data, generates the mask.
 
         Args:
             input_path (str):  path to the input file, overrides the config file
@@ -92,7 +92,7 @@ class RMspec:
         self.data = d[imin:imax+1, jmin:jmax+1]
         self.data_dim = self.data.shape
 
-        # adjust the cluster center location after the croping
+        # adjust the cluster center location after the cropping
         self.cluster_params = {}
         self.cluster_params['center'] = [-imin,-jmin]
 
@@ -155,7 +155,7 @@ class RMspec:
 
         print('deproject the image...')
 
-        # integrate the smooth model along the lign of sight
+        # integrate the smooth model along the line of sight
         I0 = np.sqrt( (smod**2).sum(axis=2)) * kpc_px * 812.
         write_data(self.output_paths['smooth'], I0, ftype='npy')
 
@@ -205,7 +205,7 @@ class RMspec:
 
         # set the range of radial wave numbers
         lx,ly = dp.shape
-        krmin = 1./smax if smax<=0.5*max(lx,ly) else 0.5*max(lx,ly) # mind zero padding
+        krmin = 1./smax if smax<=0.5*max(lx,ly) else 2./max(lx,ly) # mind zero padding
         krmax = 1./smin       # 1/2 is the Nyquist frequency
         fk = (krmax/krmin)**(1./(ns-1))
         kr = krmin * np.power(fk, np.arange(ns))
