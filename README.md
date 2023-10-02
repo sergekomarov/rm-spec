@@ -6,9 +6,9 @@ Please see USAGE.ipynb.
 ### Prerequisites
 astropy (for .fits file support)
 
-### The problem
+### Problem
 
-When one needs to deal with patchy images with complicated edges, straightforward application of a Fourier transform leads to erroneous results (e.g. wrong spectral slope or/and normalization). Several approaches have been proposed elsewhere.
+When one needs to deal with patchy images with complicated edges, a straightforward application of the Fourier transform leads to erroneous results (e.g. wrong spectral slope or/and normalization). Several approaches have been proposed elsewhere.
 
 ### Approaches
 
